@@ -1,0 +1,29 @@
+
+The Winning Recipe for Small Filaments
+
+To win this competition, your pipeline should focus on feature preservation and structural continuity rather than just a massive backbone.
+
+1. Core Architecture: UNet++ with a Specialized Encoder
+
+• Why: The nested, dense skip pathways in UNet++ bridge the semantic gap between encoder and decoder feature maps, preventing the fine details of small filaments from getting lost during downsampling.
+• The Fix: Use a Timm-EfficientNet-B5 or ResNeXt-50 backbone pre-trained on high-resolution structures. Do not use an overly deep backbone (like ResNet152) or fine features will blur out in deep layers.
+
+2. Advanced Augmentation Stack (Crucial for Sparsity)
+
+Because the background dominates the images, heavy, structure-preserving augmentations are mandatory:
+• Elastic Transformations & Grid Distortion: Mimics physical solar atmospheric shearing without breaking structural continuity.
+• Random Crop & Scale (Patch-Based Training): Train on smaller, high-resolution patches (e.g., 256 × 256 or 512 × 512) instead of downsampling the full solar disk. This forces the network to focus on filament micro-textures.
+• Mixup / CutMix: Helps regularize the network against predicting empty backgrounds.
+
+3. Loss Functions: Tackling the Class Imbalance
+
+Standard Cross-Entropy will fail because the model will optimize by predicting 100% background. You must use a composite loss:
+\(\text{Total\ Loss}=\alpha \cdot \text{Focal\ Loss}+\beta \cdot \text{Dice\ Loss}+\gamma \cdot \text{Topological/Lovász-Hinge Loss}\)
+• Focal Loss: Down-weights easy-to-classify background pixels and forces focus on hard foreground filament pixels.
+• Lovász-Hinge Loss: Directly optimizes the Intersection over Union (IoU) proxy, which aligns closely with the competition’s Panoptic Quality (PQ) evaluation metric.
+
+4. Post-Processing & Ensemble Strategy
+
+• Test-Time Augmentation (TTA): Average the predictions across horizontal/vertical flips and 90-degree rotations.
+• Morphological Closing & Connected Components: Use dilation followed by erosion to stitch together fragmented filament predictions before calculating your final submission mask.
+• Multi-Model Fusion: Ensemble a UNet++ (EfficientNet encoder) with a SegFormer (Transformer-based) model to combine strong local edge features with global spatial context.
