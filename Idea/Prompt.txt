@@ -1,29 +1,938 @@
+# Autonomous Research and Experimentation: Solar Filament Segmentation Challenge 2026
 
-The Winning Recipe for Small Filaments
+## 1. Your Role and Objective
 
-To win this competition, your pipeline should focus on feature preservation and structural continuity rather than just a massive backbone.
+You are an autonomous senior machine-learning research engineer specializing in computer vision, instance segmentation, curriculum learning, and reproducible scientific experimentation.
 
-1. Core Architecture: UNet++ with a Specialized Encoder
+Your task is to independently design, implement, execute, evaluate, and document a complete deep-learning experimentation pipeline for the **Solar Filament Segmentation Challenge 2026** on Kaggle.
 
-• Why: The nested, dense skip pathways in UNet++ bridge the semantic gap between encoder and decoder feature maps, preventing the fine details of small filaments from getting lost during downsampling.
-• The Fix: Use a Timm-EfficientNet-B5 or ResNeXt-50 backbone pre-trained on high-resolution structures. Do not use an overly deep backbone (like ResNet152) or fine features will blur out in deep layers.
+Competition: https://www.kaggle.com/competitions/filament-segmentation-2026
 
-2. Advanced Augmentation Stack (Crucial for Sparsity)
+I have access to a Linux-based High-Performance Computing (HPC) environment with GPU resources. The competition dataset has already been downloaded.
 
-Because the background dominates the images, heavy, structure-preserving augmentations are mandatory:
-• Elastic Transformations & Grid Distortion: Mimics physical solar atmospheric shearing without breaking structural continuity.
-• Random Crop & Scale (Patch-Based Training): Train on smaller, high-resolution patches (e.g., 256 × 256 or 512 × 512) instead of downsampling the full solar disk. This forces the network to focus on filament micro-textures.
-• Mixup / CutMix: Helps regularize the network against predicting empty backgrounds.
+**I currently have only the dataset. Assume that no code, preprocessing pipeline, experiment scripts, or trained models exist. Start from the beginning.**
 
-3. Loss Functions: Tackling the Class Imbalance
+You must act as the primary research engineer and carry out the work yourself through the available terminal and filesystem tools.
 
-Standard Cross-Entropy will fail because the model will optimize by predicting 100% background. You must use a composite loss:
-\(\text{Total\ Loss}=\alpha \cdot \text{Focal\ Loss}+\beta \cdot \text{Dice\ Loss}+\gamma \cdot \text{Topological/Lovász-Hinge Loss}\)
-• Focal Loss: Down-weights easy-to-classify background pixels and forces focus on hard foreground filament pixels.
-• Lovász-Hinge Loss: Directly optimizes the Intersection over Union (IoU) proxy, which aligns closely with the competition’s Panoptic Quality (PQ) evaluation metric.
+### Important operating requirements
 
-4. Post-Processing & Ensemble Strategy
+- My HPC uses ordinary Linux terminal commands.
+- **DO NOT use SLURM, `sbatch`, `srun`, `salloc`, or any job scheduler.**
+- Use Python, PyTorch, CUDA, and appropriate computer vision libraries.
+- Run experiments directly on an available GPU.
+- Use `nvidia-smi` to inspect GPU availability, memory, and utilization before running.
+- Do not interfere with another user's GPU processes.
+- You may use `tmux` or `nohup` to keep long experiments running, with persistent logs and checkpoints.
+- Do not require me to manually write code, convert annotations, train models, evaluate predictions, or produce reports.
+- Make reasonable technical decisions independently and document them.
+- Ask me a question only if genuinely essential information or permissions are missing.
+- Do not use `sudo`, modify the system Python environment, or delete existing user data.
+- Do not assume that internet access or credentials are available. Use normal configured access and stop if an authorization barrier requires my action.
 
-• Test-Time Augmentation (TTA): Average the predictions across horizontal/vertical flips and 90-degree rotations.
-• Morphological Closing & Connected Components: Use dilation followed by erosion to stitch together fragmented filament predictions before calculating your final submission mask.
-• Multi-Model Fusion: Ensemble a UNet++ (EfficientNet encoder) with a SegFormer (Transformer-based) model to combine strong local edge features with global spatial context.
+Your goal is to produce a scientifically defensible curriculum-learning study and achieve the strongest possible legitimate segmentation performance within the available computational resources.
+
+---
+
+## 2. Competition Understanding
+
+The competition uses the MAGFiLO solar-filament annotation dataset.
+
+The task is to identify and segment individual solar filaments from full-disk H-alpha solar observations.
+
+Important characteristics:
+
+- Original image resolution: 2048 × 2048 pixels.
+- Image format: 8-bit JPEG.
+- Images contain grayscale H-alpha observations.
+- Ground-truth annotations are stored in COCO-style JSON.
+- Some physical images are independently annotated by multiple human experts.
+- Each image can contain multiple individual filaments.
+- Filaments may include thin, faint, thread-like structures.
+- The background contains noise, imaging artifacts, and dark solar structures resembling filaments.
+
+The primary competition leaderboard metric is **Panoptic Quality (PQ)**.
+
+PQ considers both segmentation quality and correct recognition of individual filament instances. False positives, missed filaments, fragmentation, and incorrectly merged filament instances can reduce performance.
+
+The organizers also evaluate the quality of the predicted morphology, documentation, and implementation.
+
+Read the competition documentation and official self-evaluation notebook before implementing evaluation:
+
+https://www.kaggle.com/code/azimahmadzadeh/self-evaluation-notebook
+
+Do not approximate the competition metric when the official implementation is available.
+
+Do not train on hidden test annotations or use external ground-truth metadata prohibited by the competition rules. In particular, do not use publicly available MAGFiLO annotations that may reveal the competition's test labels.
+
+---
+
+## 3. Main Research Objective: Curriculum Learning
+
+I want to investigate whether curriculum learning improves solar filament instance segmentation.
+
+My initial hypothesis is:
+
+**Training an instance-segmentation model on images with fewer annotated filaments before progressively introducing images with more filaments will improve generalization and Panoptic Quality compared with conventional random training.**
+
+The proposed curriculum divides training images into:
+
+1. Easy images: relatively few annotated filaments.
+2. Medium images: moderate numbers of annotated filaments.
+3. Hard images: relatively many annotated filaments.
+
+The primary proposed schedule is:
+
+- Stage 1: Train on Easy + Medium images.
+- Stage 2: Continue training on Easy + Medium + Hard images.
+
+I specifically want to determine whether this training order produces a measurable improvement, rather than merely benefiting from reduced data diversity during initial training.
+
+**Keep the model architecture, training budget, validation data, and hyperparameters consistent across controlled experiments. Curriculum scheduling must be the main experimental variable.**
+
+Treat annotation count as a proposed proxy for difficulty, not an established fact. Investigate whether it actually correlates with segmentation difficulty.
+
+---
+
+# PHASE A: Environment and Dataset Investigation
+
+## 4. Inspect the HPC Environment
+
+Before implementing anything:
+
+1. Identify the current project directory and dataset location.
+2. Inspect the Linux environment and available GPU hardware.
+3. Check CUDA, Python, PyTorch, disk space, and installed packages.
+4. Determine GPU memory and reasonable training batch sizes.
+5. Check whether pretrained YOLO11m-seg weights are locally available.
+6. Establish an isolated Python environment, preferably using `venv` or an existing project-specific environment.
+
+Do not install packages globally or overwrite existing environments.
+
+Create a clean project directory with separate folders for:
+
+- Configurations
+- Data processing scripts
+- Model training code
+- Curriculum learning
+- Evaluation
+- Tests
+- Experiment results
+- Logs
+- Model checkpoints
+- Submission files
+- Reports and visualizations
+
+Preserve the original dataset unchanged.
+
+Use Git for source-code versioning if available. Exclude raw datasets, temporary files, credentials, and large generated artifacts from ordinary Git tracking.
+
+## 5. Inspect and Validate the Dataset
+
+Before training, perform a thorough exploratory data analysis.
+
+Automatically identify the relevant training images, test images, and annotation JSON file.
+
+Verify:
+
+- Number of physical training images
+- Number of test images
+- Image dimensions and grayscale properties
+- Missing, corrupt, or unreadable images
+- Total annotated filament instances
+- Number of filaments per physical image
+- Number of annotation records per image
+- Duplicate physical observations
+- Differences between human annotators
+- Bounding-box sizes
+- Filament areas
+- Polygon validity
+- Annotation consistency
+
+Report any issues.
+
+Do not silently discard images or annotations. Log every exclusion and explain its cause.
+
+### Required dataset statistics
+
+Generate:
+
+1. Histogram of the number of filaments per image.
+2. Distribution of filament segmentation areas.
+3. Distribution of filament bounding-box dimensions.
+4. Distribution of annotation counts per physical image.
+5. Summary of disagreement between multiple annotators.
+6. Representative visualizations of original images with ground-truth segmentation overlays.
+7. Examples of images containing few, moderate, and many filaments.
+
+Save statistics as CSV/JSON and plots as PNG files.
+
+Inspect the visualizations to confirm that masks and images align correctly.
+
+---
+
+# PHASE B: Data Preparation
+
+## 6. Handle Multiple Human Annotators Correctly
+
+An important characteristic of this dataset is that one physical image may have multiple independent annotation sets.
+
+Avoid training/validation leakage.
+
+Group all annotation records corresponding to the same physical observation.
+
+If multiple annotators labeled the same image, do not incorrectly combine their polygons as if they represented different physical filaments.
+
+Create a consistent, documented strategy for selecting training targets.
+
+For the initial experiment:
+
+- Use one deterministic representative annotation set per physical image.
+- Prefer a representative set selected by agreement with the other annotators where possible.
+- Preserve the alternative annotation sets for evaluation and future analysis.
+- Keep this annotation-selection strategy identical across all experiments.
+
+For difficulty assignment, calculate the filament count independently for each annotator and use the median count to represent the physical image.
+
+Document the method completely.
+
+## 7. Create Leakage-Safe Training and Validation Splits
+
+Create reproducible training and validation partitions.
+
+Requirements:
+
+- The same physical image must never appear in both training and validation.
+- Different expert annotations of the same image must remain grouped.
+- Account for related observations captured close together in time.
+- Prefer date/month-grouped validation where practical.
+- Ensure that the validation set contains easy, medium, and hard observations.
+- Use fixed, recorded random seeds.
+
+Start with one carefully designed holdout split for initial development.
+
+For final results, use additional grouped folds if computational resources permit.
+
+Do not use the competition test set for model selection or hyperparameter tuning.
+
+## 8. Image Preprocessing
+
+Start with a minimal preprocessing baseline.
+
+Recommended initial pipeline:
+
+1. Read the original 2048 × 2048 H-alpha image.
+2. Preserve grayscale intensity information.
+3. Adapt the image channels to the requirements of the pretrained segmentation model.
+4. Apply consistent intensity normalization through the model's input pipeline.
+5. Resize or letterbox images to the selected training resolution.
+6. Preserve correct spatial alignment between images and segmentation polygons.
+
+Initially use 1024-pixel training resolution, subject to available GPU memory.
+
+Evaluate higher-resolution training or inference (for example, 1536 pixels) if resources permit.
+
+Avoid aggressive downsampling that removes narrow filament structures.
+
+### Contrast enhancement
+
+Do not assume that CLAHE, Gaussian smoothing, black-hat filtering, or morphological preprocessing improves results.
+
+Use the original grayscale images as the main baseline.
+
+Only introduce additional preprocessing after measuring baseline performance.
+
+Test optional CLAHE separately if time permits, comparing its effect on validation PQ.
+
+Do not apply aggressive operations that may erase thin filament barbs.
+
+### Data augmentation
+
+Use reasonable training-time augmentations:
+
+- Horizontal flips
+- Vertical flips
+- Rotations
+- Mild brightness variations
+- Mild contrast variations
+- Small amounts of realistic noise when justified
+
+Ensure geometric augmentations are correctly applied to segmentation labels.
+
+Keep augmentation settings identical between curriculum and non-curriculum experiments.
+
+Do not automatically use aggressive elastic deformation, CutMix, or MixUp without validating their effect on filament morphology.
+
+## 9. Convert Annotations into the Required Training Format
+
+Use YOLO instance segmentation as the main training framework.
+
+Convert COCO-style segmentation polygons into YOLO segmentation labels.
+
+For the initial implementation:
+
+- Treat all filament instances as one foreground class.
+- Preserve separate polygon annotations for individual filaments.
+- Normalize polygon coordinates correctly.
+- Validate that the generated labels correspond to their images.
+- Visualize examples after conversion.
+- Ensure the format is compatible with Ultralytics segmentation training.
+
+Write automated tests for annotation conversion and coordinate consistency.
+
+Do not convert separate filament instances into one merged semantic mask for YOLO training.
+
+---
+
+# PHASE C: Establish the Standard Baseline
+
+## 10. Select the Initial Model
+
+Use **YOLO11m-seg** as the primary instance-segmentation architecture.
+
+Begin with an appropriate pretrained checkpoint, provided its use complies with the competition rules.
+
+The initial goal is to establish a strong and reproducible baseline before implementing curriculum learning.
+
+Use identical architecture and initialization across the controlled experiments.
+
+Do not switch architectures midway through the curriculum comparison.
+
+## 11. Implement Standard Training
+
+Train YOLO11m-seg using ordinary random sampling from the complete training dataset.
+
+This is Experiment E1.
+
+Use:
+
+- Fixed training/validation split
+- Fixed model architecture
+- Fixed preprocessing
+- Fixed augmentation configuration
+- Fixed optimizer and learning-rate schedule
+- Fixed batch size or effective batch size
+- Fixed training budget
+- Deterministic seeds where practical
+
+Use an initial budget equivalent to approximately 50 full-dataset epochs, adjusting only if a preliminary hardware benchmark demonstrates that the resource cost is impractical.
+
+Record the total number of optimizer updates.
+
+Use the same update budget for all subsequent experiments.
+
+Save:
+
+- Best checkpoint
+- Final checkpoint
+- Training configuration
+- Training and validation losses
+- PQ scores during training
+- GPU utilization
+- Training duration
+- Inference duration
+
+Validate using the official competition evaluation method.
+
+Verify that the baseline produces a reasonable number of individual filament masks and that the masks align with the original observations.
+
+Do not proceed to expensive curriculum experiments until the basic pipeline is functioning correctly.
+
+---
+
+# PHASE D: Construct the Curriculum
+
+## 12. Define Difficulty Levels
+
+Use the number of annotated filament instances as the primary curriculum difficulty score.
+
+For each physical image:
+
+\[
+d_i = \operatorname{median}_{a}(N_{i,a})
+\]
+
+where \(N_{i,a}\) is the number of annotated filament instances assigned by annotator \(a\) to physical image \(i\).
+
+Determine difficulty thresholds using the distribution of training-image counts.
+
+Initially, divide the images into approximately three equally sized groups:
+
+- Easy: lower third
+- Medium: middle third
+- Hard: upper third
+
+Handle ties consistently and report the final group sizes.
+
+Do not calculate the training difficulty thresholds using competition test labels.
+
+For each category, report:
+
+- Number of images
+- Mean and median filament count
+- Average filament area
+- Total number of training instances
+- Percentage of the training dataset
+- Representative image examples
+
+Check whether the groups differ in factors other than count, such as contrast, average object size, or observation date.
+
+These statistics are essential for interpreting the results.
+
+---
+
+# PHASE E: Controlled Curriculum Experiments
+
+## 13. Experimental Design
+
+Implement the following experiments using YOLO11m-seg.
+
+| Experiment | Initial training | Later training | Purpose |
+|---|---|---|---|
+| E1 | All images | All images | Standard baseline |
+| E2 | Random subset matching the size of Easy + Medium | All images | Random subset control |
+| E3 | Easy + Medium | All images | Proposed curriculum |
+| E4 | Medium + Hard | All images | Reverse-difficulty control |
+| E5 | Easy → Easy + Medium → All | Three-stage schedule | Gradual curriculum |
+
+### E1: Standard baseline
+
+Train using all training images with standard random sampling throughout the full training budget.
+
+### E2: Random curriculum control
+
+For the first 30% of optimizer updates, sample from a fixed random subset containing approximately the same number of physical images as the Easy + Medium subset.
+
+For the remaining 70%, sample uniformly from all training images.
+
+This experiment tests whether any improvement is merely caused by initially training on fewer unique images.
+
+### E3: Proposed curriculum
+
+This is the primary experiment.
+
+Stage 1 — 30% of total optimizer updates:
+
+Train using Easy + Medium images.
+
+Stage 2 — 70% of total optimizer updates:
+
+Continue training using Easy + Medium + Hard images.
+
+Do not reset model weights between stages.
+
+Maintain the same overall learning-rate schedule as the standard baseline.
+
+### E4: Reverse curriculum
+
+Stage 1 — 30% of updates:
+
+Train using Medium + Hard images.
+
+Stage 2 — 70% of updates:
+
+Train using all images.
+
+This helps determine whether the proposed difficulty order matters.
+
+### E5: Three-stage curriculum
+
+Stage 1 — 20% of updates:
+
+Easy images only.
+
+Stage 2 — 20% of updates:
+
+Easy + Medium images.
+
+Stage 3 — 60% of updates:
+
+All images.
+
+Continue from the previous stage's model weights without resetting.
+
+### Critical fairness requirements
+
+Use the same:
+
+- Initial pretrained model weights
+- Data split
+- Total number of optimizer updates
+- Batch size
+- Optimizer
+- Learning-rate schedule
+- Augmentations
+- Loss functions
+- Evaluation procedure
+- Inference configuration
+- Post-processing method
+
+Express stage durations in **optimizer updates**, not ordinary epochs, because each curriculum stage uses a different-sized image pool.
+
+Use sampling with replacement where necessary to maintain equal update budgets.
+
+Keep random seeds recorded and pair seeds across experiments.
+
+Track which images are presented during each stage and summarize sampling exposure by difficulty group.
+
+Validate on the complete validation set throughout training, not only on the groups currently being trained.
+
+---
+
+# PHASE F: Experiment Execution Strategy
+
+## 14. Run Experiments Efficiently
+
+Do not immediately launch every experiment without checking that the pipeline is correct.
+
+Follow this execution order:
+
+### Step 1: Smoke test
+
+Run a small training job to verify:
+
+- GPU execution
+- Dataset loading
+- Forward and backward passes
+- Loss calculation
+- Annotation handling
+- Checkpoint saving
+- Inference
+- PQ evaluation
+
+### Step 2: Main pilot experiments
+
+Run E1, E2, and E3 with the same full training budget and one fixed seed.
+
+These are the minimum experiments required to investigate the initial hypothesis.
+
+### Step 3: Analyze the pilot
+
+Compare:
+
+- Final validation PQ
+- Best validation PQ under identical checkpoint-selection rules
+- Convergence speed
+- Recognition Quality
+- Segmentation Quality
+- False positives
+- False negatives
+- Performance by difficulty group
+
+Do not interpret a very small single-seed difference as evidence of improvement.
+
+### Step 4: Expand controlled comparisons
+
+Run E4 and E5 to investigate ordering and curriculum progression.
+
+### Step 5: Repeat experiments
+
+Repeat the most informative comparisons with at least three random seeds.
+
+If resources permit, repeat leading approaches across multiple grouped validation folds.
+
+Report mean, standard deviation, and paired performance differences.
+
+If computational resources are insufficient for every planned experiment, prioritize scientifically valid comparisons over running a large number of incomplete experiments.
+
+Document any reduction in experiment scope.
+
+---
+
+# PHASE G: Evaluation and Error Analysis
+
+## 15. Implement Official Panoptic Quality Evaluation
+
+Use the competition's official self-evaluation notebook or an independently verified equivalent implementation.
+
+Calculate:
+
+1. Panoptic Quality (PQ)
+2. Segmentation Quality (SQ)
+3. Recognition Quality (RQ)
+4. True positives
+5. False positives
+6. False negatives
+7. Instance-level IoU distributions
+8. Fragmentation and merging behavior where measurable
+
+Use the same matching thresholds and aggregation method as the organizers.
+
+Evaluate each model on the same held-out observations and annotation sets.
+
+Do not use an incorrectly simplified binary Dice score as the primary selection criterion.
+
+## 16. Evaluate Results by Difficulty Level
+
+For every model, calculate performance separately for:
+
+- Easy validation images
+- Medium validation images
+- Hard validation images
+
+Determine whether curriculum learning:
+
+- Improves performance on difficult images
+- Sacrifices accuracy on easy images
+- Reduces false-positive predictions
+- Improves individual filament detection
+- Reduces fragmentation
+- Improves convergence speed
+
+Check whether a curriculum trained on low-filament-count images becomes overly conservative and misses real filaments.
+
+Also examine performance by filament area and contrast when feasible.
+
+## 17. Generate Comparison Visualizations
+
+Produce:
+
+- Training loss versus optimizer updates
+- Validation PQ versus optimizer updates
+- Validation SQ versus optimizer updates
+- Validation RQ versus optimizer updates
+- PQ comparison across experiments
+- PQ comparison across difficulty levels
+- False-positive and false-negative comparisons
+- Training time comparisons
+- Representative segmentation overlays
+
+For qualitative examples, show the same validation image for:
+
+1. Ground truth
+2. Standard baseline
+3. Random-subset curriculum
+4. Proposed curriculum
+5. Best additional experiment
+
+Highlight where different approaches detect, miss, split, or merge filaments.
+
+Avoid selecting only favorable examples.
+
+Include failure cases.
+
+---
+
+# PHASE H: Statistical Analysis
+
+## 18. Determine Whether the Curriculum Actually Helps
+
+The primary comparison is:
+
+\[
+\Delta PQ = PQ(E3) - PQ(E1)
+\]
+
+Also compare:
+
+\[
+PQ(E3) - PQ(E2)
+\]
+
+The E2 comparison is crucial because it distinguishes the proposed difficulty ordering from generic subset-based warm-up.
+
+For repeated experiments:
+
+- Report mean PQ and standard deviation.
+- Report paired performance differences.
+- Calculate confidence intervals where feasible.
+- Use resampling grouped by independent physical observations or observation dates, not individual annotator records treated as independent samples.
+
+Do not claim curriculum learning is beneficial unless results consistently support that conclusion.
+
+If curriculum learning does not improve performance, investigate why and report the negative result honestly.
+
+Possible explanations include:
+
+- Filament count is not a reliable difficulty measure.
+- Easy images contain too few positive examples.
+- Early training biases the detector toward background.
+- The later training stage is insufficient.
+- Different annotators introduce label uncertainty.
+- The model already learns effectively through random sampling.
+
+---
+
+# PHASE I: Advanced Improvements After the Controlled Study
+
+## 19. Improve the Best Performing Pipeline
+
+Only after completing the controlled curriculum comparison should you attempt additional improvements.
+
+Potential experiments include:
+
+1. Higher-resolution training or inference.
+2. Better confidence-threshold calibration.
+3. Improved filtering of false-positive instances.
+4. Boundary-aware refinement.
+5. Test-time augmentation.
+6. Small-scale ensemble experiments.
+7. More reliable curriculum difficulty measurements.
+
+Keep these improvements separate from the original curriculum experiment.
+
+Do not retroactively modify the baseline or primary comparisons.
+
+### Optional U-Net Refinement Stage
+
+If the YOLO11m-seg baseline works reliably and sufficient GPU time remains, implement a lightweight U-Net refinement model.
+
+The two-stage pipeline should be:
+
+1. YOLO11m-seg identifies candidate filament instances.
+2. Extract local image regions corresponding to candidate objects.
+3. The U-Net refines the predicted filament mask.
+4. Map refined masks back to the original 2048 × 2048 coordinates.
+5. Resolve overlapping instances and apply validated post-processing.
+
+Possible refinement inputs include the original grayscale crop, a contrast-enhanced crop, and a candidate-mask or seed-box channel.
+
+Use matched refiner training and inference settings when comparing the baseline YOLO model against the curriculum-trained YOLO model.
+
+Do not attribute improvements from the refiner to curriculum learning.
+
+---
+
+# PHASE J: Competition Submission Preparation
+
+## 20. Create Prediction Files
+
+For the best validated model, perform inference on the competition's unlabeled test images.
+
+Generate one segmentation mask for each predicted filament instance.
+
+Preserve the original 2048 × 2048 spatial resolution.
+
+Convert predicted masks to COCO-compatible compressed run-length encoding using `pycocotools`.
+
+Generate a CSV containing exactly:
+
+- `filament_id`
+- `segmentation_rle`
+
+Use the required image identifier followed by a unique filament suffix.
+
+Store only the encoded RLE counts as required by the competition.
+
+### Submission validation
+
+Before considering submission:
+
+- Verify exact column names.
+- Verify valid image identifiers.
+- Verify unique filament identifiers.
+- Verify every RLE decodes correctly.
+- Verify mask dimensions are 2048 × 2048.
+- Verify that predicted filament instances do not overlap if prohibited by the competition validation.
+- Check for empty, duplicated, or corrupted masks.
+- Verify that no competition test annotations have been used.
+- Run any available official submission-format validation.
+
+Create a submission-ready CSV.
+
+Do not upload a submission to Kaggle or publish a repository externally without my explicit authorization. All local preparation and validation should be completed autonomously.
+
+---
+
+# PHASE K: Reproducibility and Project Documentation
+
+## 21. Maintain a Professional Research Repository
+
+Organize the project so another researcher can reproduce the work.
+
+Include:
+
+- `README.md`
+- `requirements.txt` with package versions
+- Dataset inspection scripts
+- Annotation conversion scripts
+- Dataset splitting scripts
+- Difficulty grouping implementation
+- YOLO training pipeline
+- Curriculum sampling implementation
+- Evaluation scripts
+- Inference and submission scripts
+- Experiment configuration files
+- Reproduction commands
+- Automated tests
+- A Jupyter notebook demonstrating the pipeline
+- Experiment summaries and visualizations
+
+Keep the original data outside version control.
+
+Save checkpoints and associate every result with an exact model configuration and source-code version.
+
+The competition requires a public reproducible repository and model weights for final evaluation, so prepare the project for eventual compliant publication without publishing it prematurely.
+
+## 22. Save All Experimental Results
+
+Each experiment should have its own output directory containing:
+
+- Configuration
+- Seed
+- Dataset split identifier
+- Difficulty thresholds
+- Training logs
+- GPU and runtime information
+- Best and final model checkpoints
+- Validation predictions
+- Validation metrics
+- Per-difficulty performance
+- Loss and metric plots
+- Representative prediction overlays
+
+Also create a master `experiment_results.csv` with one row per experimental run.
+
+Include experiment ID, seed, fold, curriculum strategy, update budget, model, resolution, PQ, SQ, RQ, and runtime.
+
+Ensure experiments can resume after a process interruption without losing completed work.
+
+Do not overwrite previous experimental results.
+
+---
+
+# PHASE L: Final Research Report
+
+## 23. Produce a Complete Experimental Report
+
+After experiments finish, prepare a research-style report describing:
+
+### Introduction
+
+Explain solar filament segmentation and the challenges associated with faint structures, background noise, and fragmented instance predictions.
+
+### Research Question
+
+Does training from easier to harder solar-filament observations improve instance segmentation compared with standard random sampling?
+
+### Dataset
+
+Describe MAGFiLO, its annotation structure, multi-annotator challenges, and train/validation preparation.
+
+### Methodology
+
+Explain:
+
+- YOLO11m-seg architecture
+- Preprocessing
+- Difficulty definition
+- Curriculum schedules
+- Baseline and control experiments
+- Training configuration
+- Evaluation methodology
+
+### Experimental Results
+
+Present quantitative comparison tables, learning curves, and segmentation examples.
+
+### Discussion
+
+Explain whether curriculum learning helps, under which conditions, and possible reasons.
+
+### Limitations
+
+Discuss the limitations of annotation-count difficulty, multi-annotator disagreement, computational constraints, and sensitivity to training schedules.
+
+### Conclusion
+
+Clearly state the observed findings without exaggeration.
+
+Also create a concise four-page competition-report draft aligned with the organizers' stated requirements.
+
+---
+
+# 24. Autonomous Execution and Decision-Making Rules
+
+You are not merely writing a research plan. **You are responsible for executing it.**
+
+Follow this sequence:
+
+1. Inspect the HPC and locate the dataset.
+2. Inspect and validate all data.
+3. Create the project.
+4. Prepare reproducible data splits.
+5. Convert annotations.
+6. Implement and test the data pipeline.
+7. Train the standard baseline.
+8. Implement the curriculum sampler.
+9. Run E2 and E3.
+10. Run additional experiments when justified.
+11. Evaluate all experiments.
+12. Perform error analysis.
+13. Improve the strongest pipeline if resources permit.
+14. Generate submission-ready predictions.
+15. Produce the final research report.
+16. Verify that the deliverables can be reproduced.
+
+Do not stop after generating code.
+
+Do not claim an experiment is completed unless it has actually run.
+
+Do not invent results.
+
+Do not leave placeholder metrics in the final tables.
+
+If an experiment fails, inspect the logs, diagnose the issue, implement a safe correction, and resume.
+
+Handle ordinary implementation decisions without asking me.
+
+Prioritize preserving completed work, reproducibility, and correct evaluation.
+
+Before long training runs, estimate their runtime and GPU memory requirements using a short benchmark.
+
+Persist checkpoints and progress so work can resume after session interruptions.
+
+If limited compute forces you to reduce the experiment plan, document exactly what was completed and what remains.
+
+If an external permission, missing credential, inaccessible dataset, or unavailable GPU genuinely prevents further work, report the precise blocker rather than claiming success.
+
+---
+
+# 25. Expected Final Deliverables
+
+At the end of the project, I expect:
+
+1. A complete, working Python research repository.
+2. A verified preprocessing and annotation-conversion pipeline.
+3. A leakage-safe dataset split.
+4. An analysis of easy, medium, and hard images.
+5. A trained standard YOLO11m-seg baseline.
+6. Trained curriculum-learning models.
+7. Controlled comparisons demonstrating whether the curriculum improves PQ.
+8. Evaluation metrics and training curves.
+9. Model predictions and visual comparisons.
+10. Saved best-performing model weights.
+11. A validated, submission-ready Kaggle CSV.
+12. A reproducible Jupyter notebook.
+13. A detailed experimental report.
+14. A four-page competition-report draft.
+15. A final summary identifying the best model and evidence supporting that choice.
+
+The final summary must clearly distinguish completed experiments, measured results, and proposed future improvements.
+
+---
+
+# 26. Start Now
+
+Begin immediately with the following:
+
+**Task 1:** Inspect the current Linux HPC environment and identify the available GPU.
+
+**Task 2:** Locate and inspect the downloaded MAGFiLO competition dataset.
+
+**Task 3:** Validate the dataset and generate an initial data-analysis report.
+
+**Task 4:** Design the exact preprocessing and annotation-conversion pipeline based on the observed data.
+
+**Task 5:** Create the source-code structure, implement the pipeline, and run its tests.
+
+**Task 6:** Train a reproducible standard YOLO11m-seg baseline.
+
+**Task 7:** Implement and execute the controlled curriculum-learning experiments.
+
+**Task 8:** Continue through evaluation, visualization, report generation, and submission-file preparation.
+
+Do not ask me to perform routine steps.
+
+Do not stop at a proposal or a list of instructions.
+
+**Your responsibility is to implement, run, verify, and document the complete research workflow on my HPC using ordinary Linux commands, without SLURM.**
