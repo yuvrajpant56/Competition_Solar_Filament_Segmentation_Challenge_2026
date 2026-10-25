@@ -1,0 +1,4 @@
+comparison,n_seeds,mean_diff,std_diff,wins,paired_t_p,wilcoxon_p,pooled_PQ_diff,boot_ci_low,boot_ci_high
+E3-E1,1,0.0098,,1,,,0.0098,-0.0017,0.0219
+E3-E2,1,0.0047,,1,,,0.0047,-0.0069,0.0179
+E2-E1,1,0.0051,,1,,,0.0051,-0.007,0.0168

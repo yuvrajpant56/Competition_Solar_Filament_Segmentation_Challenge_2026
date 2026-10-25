@@ -1,0 +1,16 @@
+{
+  "weights": "results/E3_s0/weights/last.pt",
+  "infer": {
+    "imgsz": 1024,
+    "conf": 0.25,
+    "iou": 0.5,
+    "max_det": 100,
+    "min_area": 30,
+    "min_keep_frac": 0.5
+  },
+  "n_rows": 1289,
+  "n_test_images": 180,
+  "images_with_predictions": 178,
+  "mean_filaments_per_image": 7.161111111111111,
+  "validation_errors": []
+}
