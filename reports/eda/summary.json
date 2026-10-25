@@ -1,0 +1,93 @@
+{
+  "n_records": 1154,
+  "n_physical_images": 707,
+  "n_test_images": 180,
+  "n_annotations": 8199,
+  "n_annotations_kept": 8199,
+  "records_per_image": {
+    "1": 411,
+    "2": 145,
+    "3": 151
+  },
+  "filaments_per_record": {
+    "count": 1154.0,
+    "mean": 7.1,
+    "std": 4.38,
+    "min": 1.0,
+    "25%": 4.0,
+    "50%": 7.0,
+    "75%": 10.0,
+    "max": 26.0
+  },
+  "d_median": {
+    "count": 707.0,
+    "mean": 7.32,
+    "std": 4.3,
+    "min": 1.0,
+    "25%": 4.0,
+    "50%": 7.0,
+    "75%": 10.0,
+    "max": 26.0
+  },
+  "image_dims": "{(2048, 2048, 1): 707}",
+  "all_gray": true,
+  "area_px": {
+    "count": 8199.0,
+    "mean": 2119.8,
+    "std": 2741.7,
+    "min": 9.0,
+    "25%": 670.0,
+    "50%": 1228.0,
+    "75%": 2438.0,
+    "max": 37739.0
+  },
+  "bbox_w": {
+    "count": 8199.0,
+    "mean": 103.2,
+    "std": 93.0,
+    "min": 3.8,
+    "25%": 46.4,
+    "50%": 74.5,
+    "75%": 126.2,
+    "max": 1067.3
+  },
+  "bbox_h": {
+    "count": 8199.0,
+    "mean": 91.8,
+    "std": 72.0,
+    "min": 3.5,
+    "25%": 43.6,
+    "50%": 69.6,
+    "75%": 116.6,
+    "max": 709.8
+  },
+  "json_vs_raster_area_rel_diff_median": 0.0,
+  "polygons_not_closed": 8199,
+  "anns_with_oob_vertices": 0,
+  "inter_annotator_pq_mean": 0.34361230777719937,
+  "inter_annotator_count_range_mean": 2.5777027027027026,
+  "observatories": {
+    "Lh": 127,
+    "Ch": 125,
+    "Mh": 125,
+    "Bh": 118,
+    "Th": 110,
+    "Uh": 102
+  },
+  "months": 118,
+  "split_sizes": {
+    "train": 566,
+    "val": 141
+  },
+  "fold_sizes": {
+    "0": 141,
+    "1": 142,
+    "2": 142,
+    "3": 141,
+    "4": 141
+  },
+  "thresholds": [
+    5.0,
+    9.0
+  ]
+}

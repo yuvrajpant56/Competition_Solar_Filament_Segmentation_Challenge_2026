@@ -1,0 +1,11 @@
+.venv/
+data/
+results/
+checkpoints/
+logs/
+submissions/*.csv
+__pycache__/
+*.pyc
+.pytest_cache/
+src/evaluation/official/kernel.json
+runs/
