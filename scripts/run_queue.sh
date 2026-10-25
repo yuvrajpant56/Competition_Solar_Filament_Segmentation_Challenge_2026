@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Usage: bash scripts/run_queue.sh "E1:0 E2:0 E3:0"
 # Trains each EXP:SEED sequentially on GPU 0 (skips finished runs, resumes interrupted ones);
-# evaluates each finished run in the background while the next one trains.
+# evaluates each finished run before the next one trains (sequential: avoids RAM exhaustion).
 set -u
 cd "$(dirname "$0")/.."
 export CUDA_VISIBLE_DEVICES=0
@@ -16,7 +16,7 @@ for item in $1; do
     echo "[$(date)] train $name"; $PY -m src.training.train --exp $exp --seed $seed > logs/train_$name.log 2>&1
   fi
   echo "[$(date)] train $name exit $?"
-  ( $PY -m src.evaluation.evaluate --run results/$name > logs/eval_$name.log 2>&1; echo "[$(date)] eval $name exit $?" ) &
+  [ -f results/$name/val_summary.json ] || $PY -m src.evaluation.evaluate --run results/$name > logs/eval_$name.log 2>&1; echo "[$(date)] eval $name exit $?"
 done
 wait
 echo "[$(date)] QUEUE DONE"
