@@ -9,3 +9,4 @@ __pycache__/
 .pytest_cache/
 src/evaluation/official/kernel.json
 runs/
+**/cache/

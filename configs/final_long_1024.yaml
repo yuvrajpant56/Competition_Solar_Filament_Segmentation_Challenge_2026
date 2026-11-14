@@ -1,0 +1,45 @@
+# Shared settings for every controlled curriculum experiment (E1-E5). Only `schedule` differs.
+model: yolo11m-seg.pt          # COCO-pretrained Ultralytics checkpoint (identical init for all runs)
+data: data/yolo/dataset.yaml
+imgsz: 1024
+batch: 16
+nbs: 16                        # nominal batch == batch -> one optimizer update per batch (no accumulation)
+epochs: 150                    # FINAL-MODEL tuning (not part of controlled study): 3x budget
+optimizer: SGD
+lr0: 0.01
+lrf: 0.01
+momentum: 0.937
+weight_decay: 0.0005
+warmup_epochs: 3
+cos_lr: false
+# augmentation (identical across experiments). Mosaic/mixup/copy-paste disabled: mosaic would pull images
+# from outside the active curriculum pool and breaks full-disk geometry.
+mosaic: 0.0
+close_mosaic: 0
+mixup: 0.0
+copy_paste: 0.0
+fliplr: 0.5
+flipud: 0.5
+degrees: 30.0
+translate: 0.05
+scale: 0.1
+shear: 0.0
+perspective: 0.0
+hsv_h: 0.0
+hsv_s: 0.0
+hsv_v: 0.2                     # mild brightness/contrast variation (grayscale-safe)
+erasing: 0.0
+overlap_mask: false            # per-instance mask targets (no merged semantic mask)
+save_period: 5                 # checkpoint every 5 epochs -> PQ-vs-updates curves
+workers: 8
+cache: ram
+deterministic: true
+plots: true
+# inference / post-processing (identical across experiments)
+infer:
+  imgsz: 1024
+  conf: 0.25
+  iou: 0.5
+  max_det: 100
+  min_area: 30                 # px at 2048 resolution
+  min_keep_frac: 0.5           # drop instance if overlap resolution removes >50% of its pixels

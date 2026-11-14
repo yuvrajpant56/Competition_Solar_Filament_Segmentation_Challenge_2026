@@ -1,0 +1,26 @@
+{
+  "weights": [
+    "results/E5_s0/weights/last.pt",
+    "results/E5_s1/weights/last.pt",
+    "results/E5_s2/weights/last.pt",
+    "results/E5_s3/weights/last.pt",
+    "results/E5_s4/weights/last.pt"
+  ],
+  "imgsz": 1536,
+  "pre": 0.2,
+  "vote": 0.5,
+  "conf": 0.45,
+  "infer": {
+    "imgsz": 1024,
+    "conf": 0.25,
+    "iou": 0.5,
+    "max_det": 100,
+    "min_area": 30,
+    "min_keep_frac": 0.5
+  },
+  "n_rows": 1099,
+  "n_test_images": 180,
+  "images_with_predictions": 176,
+  "mean_filaments_per_image": 6.105555555555555,
+  "validation_errors": []
+}
