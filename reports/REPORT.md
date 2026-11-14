@@ -127,6 +127,8 @@ so the bias should be small. The study numbers in §3 are not affected.
 one filament, 6.1 per image on average). It passes format validation with 0 errors: every test image is covered,
 ids are unique, and the RLEs decode to 2048² masks. Metadata is in `submissions/E5_ens5_1536.json`.
 
+**Leaderboard.** Public Kaggle leaderboard score: **0.70** (submitted 2026-11-14). A gap this large cannot be explained by tuning bias, which would push the other way. The likeliest cause is that the leaderboard scores predictions differently from our local per-annotator-record PQ (for example, against the best-matching or merged annotation instead of every annotator's set), or that the public test subset is easier. The local numbers are still the right basis for comparing schedules with each other, but they are not on the same scale as the leaderboard.
+
 ## 6. Qualitative analysis
 
 `reports/figures/qualitative_val.png` shows easy, medium and hard val images. Common errors:
@@ -140,4 +142,4 @@ ids are unique, and the RLEs decode to 2048² masks. Metadata is in `submissions
 - Curriculum effects are small compared with seed noise (±0.005). Five seeds are not enough to establish significance
   at this effect size.
 - The difficulty proxy is the filament count only. Contrast, filament size and annotator agreement are not used.
-- The test-set (Kaggle) score was not measured from this environment.
+- The public leaderboard score (0.70) is not on the same scale as local validation PQ (0.417). The scoring difference has not been pinned down, and the private score is not yet known.

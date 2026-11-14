@@ -7,6 +7,7 @@
 - Weights: `weights/final/E5_s{0..4}.pt` (copies of `results/E5_s*/weights/last.pt`; not tracked in git).
 - Submission: `submissions/E5_ens5_1536.csv`. It has 1099 rows for 180 test images and passes validation with 0 errors.
 - Validation PQ is 0.417 (SQ 0.664, RQ 0.629). The inference settings were tuned on this same split, so the figure is optimistic.
+- **Public Kaggle leaderboard score: 0.70.** It is much higher than validation PQ, most likely because the leaderboard scores predictions differently from our local per-annotator PQ. The private score is not yet known.
 
 Why this model:
 - E5 had the best mean PQ in the controlled study.
@@ -36,7 +37,7 @@ E1 0.3541 ± 0.0050 · E2 0.3514 ± 0.0043 · E3 0.3535 ± 0.0053 · E4 0.3476 �
 
 ## Not done / proposed future work
 
-- **Leaderboard score:** not measured. `submissions/E5_ens5_1536.csv` must be uploaded to Kaggle, which needs the user's credentials.
+- **Leaderboard/local metric gap:** public LB 0.70 vs val PQ 0.417. Pin down how Kaggle scores predictions and add a matching local scorer.
 - **Cross-validation:** only fold 0 was used. Running all 5 month-grouped folds would measure fold variance and give an untuned validation estimate.
 - **More seeds:** at least 10 per schedule are needed to resolve effects of about 0.004 PQ.
 - **Better difficulty proxies:** contrast, filament size, annotator agreement.

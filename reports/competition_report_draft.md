@@ -12,7 +12,7 @@ curriculum. The three-stage easy→medium→all curriculum gave the best Panopti
 for the baseline). It won on all 5 seeds, but the effect is within image-level bootstrap uncertainty. The
 anti-curriculum was reliably worse (−0.006, 0/5 seeds). Inference resolution, a tuned confidence threshold and
 5-seed mask-voting ensembling had a much larger effect: validation PQ rose to 0.417, above the measured
-inter-annotator agreement of ≈ 0.34.
+inter-annotator agreement of ≈ 0.34. The submitted ensemble scored 0.70 on the public Kaggle leaderboard.
 
 ## 1. Introduction
 
@@ -103,6 +103,8 @@ resolution recovers thin and small filaments. The higher confidence threshold an
 for precision, which pays off because PQ weights FP and FN equally and annotators disagree about faint filaments.
 Because these settings were selected on the validation split, 0.417 is an optimistic estimate.
 
+The public Kaggle leaderboard score is **0.70**, well above the local validation PQ of 0.417. A gap this large cannot be explained by tuning bias, which would push the other way. The likeliest cause is that the leaderboard scores predictions differently from our local per-annotator-record PQ (for example, against the best-matching or merged annotation instead of every annotator's set), or that the public test subset is easier. The local numbers are still the right basis for comparing schedules with each other, but they are not on the same scale as the leaderboard.
+
 ## 5. Discussion
 
 Curriculum effects in this setting are about 1% PQ. This is comparable to seed-to-seed noise and roughly an order
@@ -117,14 +119,14 @@ inter-annotator PQ (≈ 0.34) under the same metric. Part of this is because a m
 segmentation is penalised less than one annotator's idiosyncratic choices.
 
 **Limitations.** Single held-out fold. Count-based difficulty proxy. 5 seeds is not enough for effects of this size.
-Inference and ensemble settings were tuned on validation. No test-set (leaderboard) score is reported here.
+Inference and ensemble settings were tuned on validation. The public leaderboard score (0.70) is on a different scale from local validation PQ (see §4), and the private score is not yet known.
 
 ## 6. Conclusion
 
 A gradual easy→medium→all curriculum is a safe default. It costs nothing and never hurt in our runs, but its benefit
 is small and not statistically established. Hard-first ordering should be avoided. For competition performance, input
 resolution, the confidence threshold and seed ensembling matter far more. Our submission is a 5-seed ensemble of
-E5 models at 1536 px with a validation PQ of 0.417.
+E5 models at 1536 px with a validation PQ of 0.417 and a public leaderboard score of 0.70.
 
 ## Reproducibility
 
