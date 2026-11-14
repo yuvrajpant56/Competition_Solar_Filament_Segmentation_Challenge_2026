@@ -10,3 +10,4 @@ __pycache__/
 src/evaluation/official/kernel.json
 runs/
 **/cache/
+weights/final/
